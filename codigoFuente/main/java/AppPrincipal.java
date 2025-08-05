@@ -59,28 +59,26 @@ public class AppPrincipal extends JFrame { // ¡Ahora es una subclase de JFrame!
         return ip.matches("^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
     }
 
-    private void escanearRed(String ipInicio, String ipFin) {
-        // Ejemplo: escaneo ficticio
-        for (int i = 1; i <= 10; i++) {
-            try {
-                Thread.sleep(300);
-                
-                // Actualizar UI desde el hilo de despacho
-                SwingUtilities.invokeLater(() -> {
-                    barraProgreso.setValue(i * 10);
-                    modeloTabla.addRow(new Object[]{
-                        "192.168.1." + i,
-                        "Equipo-" + i,
-                        i % 2 == 0 ? "Activo" : "Inactivo",
-                        (int)(Math.random() * 50)
-                    });
+   private void escanearRed(String ipInicio, String ipFin) {
+    new Thread(() -> {
+        List<Dispositivo> dispositivos = EscanerRed.escanearRango(ipInicio, ipFin);
+        
+        SwingUtilities.invokeLater(() -> {
+            modeloTabla.setRowCount(0); // Limpiar tabla antes de agregar nuevos resultados
+            
+            for (Dispositivo dispositivo : dispositivos) {
+                modeloTabla.addRow(new Object[]{
+                    dispositivo.getIp(),
+                    dispositivo.getNombre(),
+                    dispositivo.isActivo() ? "🟢 Activo" : "🔴 Inactivo",
+                    dispositivo.isActivo() ? (int)(Math.random() * 50) : 0
                 });
-            } catch (InterruptedException e) {
-                e.printStackTrace();
             }
-        }
-    }
-
+            
+            barraProgreso.setValue(100); // Completo al 100%
+        });
+    }).start();
+}
     public static void main(String[] args) {
         // ¡Correcto! Ahora creamos una instancia
         SwingUtilities.invokeLater(() -> {
