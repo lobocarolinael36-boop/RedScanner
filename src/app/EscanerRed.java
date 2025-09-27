@@ -10,6 +10,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+// [ADICIÓN]
+import java.io.IOException;
 
 public class EscanerRed {
 
@@ -104,26 +106,81 @@ public class EscanerRed {
         return dispositivo;
     }
 
-    // Ping usando comando del SO (Windows / Unix). Si se excede el timeout, se mata el proceso.
+    /**
+     * Netstat 1: Muestra conexiones activas con formato numérico y ID de proceso.
+     * Equivalente a `netstat -ano` (Windows) o `netstat -anp` (Linux/macOS - puede requerir sudo).
+     * @return La salida del comando Netstat -ano / -anp.
+     */
+    public static String obtenerConexionesActivas() {
+        String comando;
+        if (esWindows()) {
+            comando = "netstat -ano";
+        } else {
+            // Linux/macOS - intentar con privilegios reducidos primero
+            comando = "netstat -an";
+        }
+        return ejecutarComandoSistema(comando);
+    }
+
+    /**
+     * Netstat 2: Muestra estadísticas por protocolo (TCP, UDP, ICMP, etc.).
+     * Equivalente a `netstat -s`.
+     * @return La salida del comando Netstat -s.
+     */
+    public static String obtenerEstadisticasProtocolo() {
+        String comando = "netstat -s";
+        return ejecutarComandoSistema(comando);
+    }
+
+    /**
+     * Netstat 3: Muestra la tabla de enrutamiento de la red.
+     * Equivalente a `netstat -r` o `route print` (Windows).
+     * @return La salida del comando Netstat -r.
+     */
+    public static String obtenerTablaEnrutamiento() {
+        String comando;
+        if (esWindows()) {
+            comando = "route print"; // Alternativa común para la tabla de enrutamiento en Windows
+        } else {
+            comando = "netstat -r"; // Tabla de enrutamiento en Unix
+        }
+        return ejecutarComandoSistema(comando);
+    }
+
+    /**
+     * Netstat 4: Muestra las interfaces de red y estadísticas.
+     * Equivalente a `netstat -i` o `ipconfig` en Windows.
+     * @return La salida del comando de interfaces de red.
+     */
+    public static String obtenerInterfacesRed() {
+        String comando;
+        if (esWindows()) {
+            comando = "ipconfig";
+        } else {
+            comando = "netstat -i";
+        }
+        return ejecutarComandoSistema(comando);
+    }
+    
+    
     private static boolean pingSistema(String ip, int timeoutMs) {
         ProcessBuilder pb;
-        if (esWindows()) {
-            // -n 1 una solicitud, -w timeout en ms
-            pb = new ProcessBuilder("cmd.exe", "/c", "ping -n 1 -w " + timeoutMs + " " + ip);
-        } else {
-            // Unix (Linux/macOS): -c 1 una solicitud. Timeout se maneja con waitFor(timeout)
-            pb = new ProcessBuilder("bash", "-lc", "ping -c 1 " + ip);
-        }
         try {
+            if (esWindows()) {
+                pb = new ProcessBuilder("cmd.exe", "/c", "ping -n 1 -w " + timeoutMs + " " + ip);
+            } else {
+                // Unix/Linux/macOS - convertir timeoutMs a segundos para ping
+                int timeoutSec = Math.max(1, timeoutMs / 1000);
+                pb = new ProcessBuilder("bash", "-c", "ping -c 1 -W " + timeoutSec + " " + ip);
+            }
+            
             Process p = pb.start();
-            boolean finished = p.waitFor(timeoutMs + 200L, TimeUnit.MILLISECONDS);
+            boolean finished = p.waitFor(timeoutMs + 1000L, TimeUnit.MILLISECONDS);
             if (!finished) {
                 p.destroyForcibly();
                 return false;
             }
-            int exit = p.exitValue();
-            // En la mayoría de plataformas: 0 = éxito
-            return exit == 0;
+            return p.exitValue() == 0;
         } catch (Exception e) {
             return false;
         }
@@ -134,6 +191,53 @@ public class EscanerRed {
         return os.contains("win");
     }
 
+    /**
+     * Ejecuta un comando del sistema y devuelve su salida.
+     * @param comando El comando a ejecutar (ej: "netstat -ano").
+     * @return La salida del comando como una cadena de texto.
+     */
+    private static String ejecutarComandoSistema(String comando) {
+        ProcessBuilder pb;
+        try {
+            if (esWindows()) {
+                pb = new ProcessBuilder("cmd.exe", "/c", comando);
+            } else {
+                pb = new ProcessBuilder("bash", "-c", comando);
+            }
+
+            Process process = pb.start();
+            boolean finished = process.waitFor(30, TimeUnit.SECONDS);
+
+            if (!finished) {
+                process.destroyForcibly();
+                return "Error: Comando excedió el tiempo límite";
+            }
+
+            // Leer salida estándar
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+            }
+
+            // Si no hay salida, leer error
+            if (output.length() == 0 && process.exitValue() != 0) {
+                try (BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                    String errorLine;
+                    while ((errorLine = errorReader.readLine()) != null) {
+                        output.append("Error: ").append(errorLine).append("\n");
+                    }
+                }
+            }
+
+            return output.length() > 0 ? output.toString() : "Comando ejecutado (sin salida)";
+        } catch (Exception e) {
+            return "Error ejecutando '" + comando + "': " + e.getMessage();
+        }
+    }
+    
     // Nombre por nslookup (sistema) y fallback a Java
     private static String obtenerNombreHost(String ip) {
         String nombre = ejecutarComandoNSLookup(ip);
@@ -267,29 +371,32 @@ public class EscanerRed {
 
     public static long ipToLong(String ip) {
         if (!validarIP(ip)) {
-            throw new IllegalArgumentException("Dirección IP inválida: " + ip);
+            throw new IllegalArgumentException("IP inválida para conversión: " + ip);
         }
-        String[] o = ip.split("\\.");
-        return (Long.parseLong(o[0]) << 24)
-                | (Long.parseLong(o[1]) << 16)
-                | (Long.parseLong(o[2]) << 8)
-                | Long.parseLong(o[3]);
+        String[] parts = ip.trim().split("\\.");
+        // [CORRECCIÓN/COMPLETADO] Completar la lógica de conversión
+        long result = 0;
+        for (int i = 0; i < 4; i++) {
+            result = result | (Long.parseLong(parts[i]) << (24 - (8 * i)));
+        }
+        return result & 0xFFFFFFFFL; // Asegurar que sea unsigned (positivo)
+    }
+
+    public static String longToIp(long ipLong) {
+        return ((ipLong >> 24) & 0xFF) + "." +
+               ((ipLong >> 16) & 0xFF) + "." +
+               ((ipLong >> 8) & 0xFF) + "." +
+               (ipLong & 0xFF);
     }
 
     public static boolean validarRangoIPs(String ipInicio, String ipFin) {
+        if (!validarIP(ipInicio) || !validarIP(ipFin)) return false;
         try {
-            long ini = ipToLong(ipInicio);
+            long inicio = ipToLong(ipInicio);
             long fin = ipToLong(ipFin);
-            return fin >= ini;
-        } catch (IllegalArgumentException e) {
+            return inicio <= fin;
+        } catch (Exception e) {
             return false;
         }
-    }
-
-    private static String longToIp(long ip) {
-        return ((ip >> 24) & 0xFF) + "."
-                + ((ip >> 16) & 0xFF) + "."
-                + ((ip >> 8) & 0xFF) + "."
-                + (ip & 0xFF);
     }
 }
