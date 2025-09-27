@@ -3,6 +3,8 @@ package app;
 import modelos.Dispositivo;
 
 import javax.swing.*;
+import javax.swing.event.DocumentListener;
+import javax.swing.event.DocumentEvent;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -21,19 +23,24 @@ public class AppPrincipal extends JFrame {
     private JLabel labelResumen;
     private JComboBox<String> comboFiltro;
     private JSpinner spinnerTimeoutPing, spinnerTimeoutPuerto, spinnerHilos;
+    private JButton botonNetstat;
 
     private List<Dispositivo> dispositivosEscaneados;
 
     public AppPrincipal() {
-    	
         setTitle("Escáner de Red Avanzado");
         setSize(1000, 580);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+        
+        labelResumen = new JLabel("Equipos: 0 | Activos: 0");
 
         // Modelo de tabla
         modeloTabla = new DefaultTableModel() {
-            @Override public boolean isCellEditable(int row, int column) { return false; }
+            @Override 
+            public boolean isCellEditable(int row, int column) { 
+                return false; 
+            }
             @Override
             public Class<?> getColumnClass(int column) {
                 return column == 2 ? Boolean.class : String.class;
@@ -57,28 +64,24 @@ public class AppPrincipal extends JFrame {
         campoIPInicio = new JTextField(14);
         campoIPFin = new JTextField(14);
 
-        // Valores por defecto típicos de LAN
         campoIPInicio.setText("192.168.1.1");
         campoIPFin.setText("192.168.1.254");
 
-        // Controles de configuración
         spinnerTimeoutPing = new JSpinner(new SpinnerNumberModel(1000, 100, 10000, 100));
         spinnerTimeoutPuerto = new JSpinner(new SpinnerNumberModel(500, 100, 10000, 100));
         spinnerHilos = new JSpinner(new SpinnerNumberModel(10, 1, 200, 1));
+        
+        comboFiltro = new JComboBox<>(new String[]{"Todos", "Activos", "Inactivos"});
 
         botonEscanear = new JButton("Escanear");
         botonDetener = new JButton("Detener");
         botonDetener.setEnabled(false);
-
         botonGuardarCSV = new JButton("Guardar CSV");
         botonLimpiar = new JButton("Limpiar");
         botonBuscar = new JButton("Buscar");
+        botonNetstat = new JButton("Netstat");
 
         progressBar = new JProgressBar(0, 100);
-        progressBar.setVisible(false);
-
-        labelResumen = new JLabel("Equipos: 0 | Activos: 0");
-        comboFiltro = new JComboBox<>(new String[]{"Todos", "Activos", "Inactivos"});
 
         // Listeners
         botonEscanear.addActionListener(e -> escanearRed());
@@ -87,10 +90,20 @@ public class AppPrincipal extends JFrame {
         botonLimpiar.addActionListener(e -> limpiarBusqueda());
         botonBuscar.addActionListener(e -> buscarDispositivo());
         comboFiltro.addActionListener(e -> aplicarFiltro());
+        botonNetstat.addActionListener(e -> mostrarFuncionesNetstat());
 
-        // Validación “en vivo” mientras se escribe
-        campoIPInicio.getDocument().addDocumentListener((SimpleDocumentListener) e -> marcarValidezCampo(campoIPInicio));
-        campoIPFin.getDocument().addDocumentListener((SimpleDocumentListener) e -> marcarValidezCampo(campoIPFin));
+        // Document listeners corregidos
+        campoIPInicio.getDocument().addDocumentListener(new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) { marcarValidezCampo(campoIPInicio); }
+            public void removeUpdate(DocumentEvent e) { marcarValidezCampo(campoIPInicio); }
+            public void changedUpdate(DocumentEvent e) { marcarValidezCampo(campoIPInicio); }
+        });
+        
+        campoIPFin.getDocument().addDocumentListener(new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) { marcarValidezCampo(campoIPFin); }
+            public void removeUpdate(DocumentEvent e) { marcarValidezCampo(campoIPFin); }
+            public void changedUpdate(DocumentEvent e) { marcarValidezCampo(campoIPFin); }
+        });
     }
 
     private void setupLayout() {
@@ -141,8 +154,9 @@ public class AppPrincipal extends JFrame {
         panelBotones.add(botonGuardarCSV);
         panelBotones.add(botonBuscar);
         panelBotones.add(botonLimpiar);
+        panelBotones.add(botonNetstat);
 
-        // Inferior: botones + resumen (evitamos usar SOUTH y PAGE_END por separado)
+        // Inferior: botones + resumen
         JPanel panelInferior = new JPanel(new BorderLayout());
         panelInferior.add(panelBotones, BorderLayout.WEST);
         JPanel panelResumen = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 8));
@@ -167,7 +181,7 @@ public class AppPrincipal extends JFrame {
                 "Ingrese la IP a buscar:",
                 "Buscar dispositivo",
                 JOptionPane.QUESTION_MESSAGE);
-
+ 
         if (ipABuscar == null || ipABuscar.trim().isEmpty()) return;
 
         if (!validarIP(ipABuscar)) {
@@ -209,9 +223,8 @@ public class AppPrincipal extends JFrame {
     }
 
     private void limpiarBusqueda() {
-            modeloTabla.setRowCount(0);
-            labelResumen.setText("Equipos: 0 | Activos: 0");
-        
+        modeloTabla.setRowCount(0);
+        labelResumen.setText("Equipos: 0 | Activos: 0");
     }
 
     private boolean validarIP(String ip) {
@@ -362,20 +375,83 @@ public class AppPrincipal extends JFrame {
         }
     }
 
+    private void mostrarFuncionesNetstat() {
+        String[] opciones = {
+            "Conexiones Activas (-an)", 
+            "Estadísticas de Protocolo (-s)", 
+            "Tabla de Enrutamiento (-r)",
+            "Interfaces de Red"
+        };
+        
+        String seleccion = (String) JOptionPane.showInputDialog(
+            this, 
+            "Seleccione la función Netstat a ejecutar:", 
+            "Funciones Netstat", 
+            JOptionPane.QUESTION_MESSAGE, 
+            null, 
+            opciones, 
+            opciones[0]
+        );
+
+        if (seleccion != null) {
+            ejecutarYMostrarNetstat(seleccion);
+        }
+    }
+
+    private void ejecutarYMostrarNetstat(String funcion) {
+        progressBar.setVisible(true);
+        progressBar.setIndeterminate(true);
+        botonNetstat.setEnabled(false);
+        
+        new Thread(() -> {
+            String resultado = "";
+            String titulo = "Netstat: " + funcion;
+
+            switch (funcion) {
+                case "Conexiones Activas (-an)":
+                    resultado = EscanerRed.obtenerConexionesActivas();
+                    break;
+                case "Estadísticas de Protocolo (-s)":
+                    resultado = EscanerRed.obtenerEstadisticasProtocolo();
+                    break;
+                case "Tabla de Enrutamiento (-r)":
+                    resultado = EscanerRed.obtenerTablaEnrutamiento();
+                    break;
+                case "Interfaces de Red":
+                    resultado = EscanerRed.obtenerInterfacesRed();
+                    break;
+                default:
+                    resultado = "Error: Función no reconocida.";
+            }
+
+            final String resultadoFinal = resultado;
+            
+            SwingUtilities.invokeLater(() -> {
+                JTextArea textArea = new JTextArea(resultadoFinal);
+                textArea.setEditable(false);
+                textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+                JScrollPane scrollPane = new JScrollPane(textArea);
+                scrollPane.setPreferredSize(new Dimension(700, 500));
+
+                JOptionPane.showMessageDialog(this, scrollPane, titulo, JOptionPane.INFORMATION_MESSAGE);
+
+                progressBar.setIndeterminate(false);
+                progressBar.setVisible(false);
+                botonNetstat.setEnabled(true);
+            });
+        }).start();
+    }
+
     public static void main(String[] args) {
-    	try {
-            // Look and Feel Nimbus
+        try {
             UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
 
-            // Fondo oscuro y letras blancas
             UIManager.put("control", new Color(45, 45, 45)); 
             UIManager.put("info", new Color(60, 60, 60));
             UIManager.put("nimbusBase", new Color(60, 60, 60));
             UIManager.put("nimbusBlueGrey", new Color(80, 80, 80));
             UIManager.put("Button.background", new Color(70, 70, 70));
-
-            // Barra de progreso en rosa hot
-            UIManager.put("nimbusOrange", new Color(255, 105, 180)); // rosa fuerte
+            UIManager.put("nimbusOrange", new Color(255, 105, 180));
             UIManager.put("ProgressBar.foreground", new Color(255, 105, 180));
             UIManager.put("ProgressBar.selectionForeground", Color.WHITE);
             UIManager.put("ProgressBar.selectionBackground", Color.WHITE);
@@ -387,12 +463,11 @@ public class AppPrincipal extends JFrame {
         SwingUtilities.invokeLater(() -> new AppPrincipal().setVisible(true));
     }
 
-    // --- Utilidad para document listener sin verbosidad ---
-    @FunctionalInterface
-    interface SimpleDocumentListener extends javax.swing.event.DocumentListener {
-        void update(javax.swing.event.DocumentEvent e);
-        @Override default void insertUpdate(javax.swing.event.DocumentEvent e) { update(e); }
-        @Override default void removeUpdate(javax.swing.event.DocumentEvent e) { update(e); }
-        @Override default void changedUpdate(javax.swing.event.DocumentEvent e) { update(e); }
+    public JButton getBotonNetstat() {
+        return botonNetstat;
+    }
+
+    public void setBotonNetstat(JButton botonNetstat) {
+        this.botonNetstat = botonNetstat;
     }
 }
