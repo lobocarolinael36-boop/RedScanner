@@ -167,7 +167,7 @@ public class AppPrincipal extends JFrame {
                 "Ingrese la IP a buscar:",
                 "Buscar dispositivo",
                 JOptionPane.QUESTION_MESSAGE);
-
+ 
         if (ipABuscar == null || ipABuscar.trim().isEmpty()) return;
 
         if (!validarIP(ipABuscar)) {
@@ -209,13 +209,9 @@ public class AppPrincipal extends JFrame {
     }
 
     private void limpiarBusqueda() {
-        if (dispositivosEscaneados != null && !dispositivosEscaneados.isEmpty()) {
-            actualizarTabla(dispositivosEscaneados);
-            actualizarResumen();
-        } else {
             modeloTabla.setRowCount(0);
             labelResumen.setText("Equipos: 0 | Activos: 0");
-        }
+        
     }
 
     private boolean validarIP(String ip) {
@@ -368,21 +364,25 @@ public class AppPrincipal extends JFrame {
 
     public static void main(String[] args) {
     	try {
-    		
-    	    UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
-    	    UIManager.put("control", new Color(45, 45, 45)); // fondo general oscuro
-    	    UIManager.put("text", new Color(230, 230, 230)); // texto claro
-    	    UIManager.put("nimbusBase", new Color(60, 60, 60)); 
-    	    UIManager.put("nimbusBlueGrey", new Color(80, 80, 80));
-    	    UIManager.put("nimbusLightBackground", new Color(45, 45, 45));
-    	    UIManager.put("ProgressBar.selectionForeground", Color.WHITE); // texto sobre la barra
-    	    UIManager.put("ProgressBar.selectionBackground", Color.WHITE);
-    	    UIManager.put("nimbusOrange", new Color(255, 105, 180)); // reemplaza el color de carga
-    	    UIManager.put("ProgressBar.foreground", new Color(255, 105, 180)); // rosa fuerte tipo "Hot Pink"
+            // Look and Feel Nimbus
+            UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
 
-    	} catch (Exception e) {
-    	    e.printStackTrace();
-    	}
+            // Fondo oscuro y letras blancas
+            UIManager.put("control", new Color(45, 45, 45)); 
+            UIManager.put("info", new Color(60, 60, 60));
+            UIManager.put("nimbusBase", new Color(60, 60, 60));
+            UIManager.put("nimbusBlueGrey", new Color(80, 80, 80));
+            UIManager.put("Button.background", new Color(70, 70, 70));
+
+            // Barra de progreso en rosa hot
+            UIManager.put("nimbusOrange", new Color(255, 105, 180)); // rosa fuerte
+            UIManager.put("ProgressBar.foreground", new Color(255, 105, 180));
+            UIManager.put("ProgressBar.selectionForeground", Color.WHITE);
+            UIManager.put("ProgressBar.selectionBackground", Color.WHITE);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         SwingUtilities.invokeLater(() -> new AppPrincipal().setVisible(true));
     }
