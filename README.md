@@ -2,12 +2,8 @@
 
 Estructura del Proyecto
 ---
-<<<<<<< HEAD
-<img width="517" height="256" alt="image" src="https://github.com/user-attachments/assets/67fe3cba-7fb3-47f4-972e-8d9e289a4cd7" />
-=======
-<img width="222" height="268" alt="image" src="https://github.com/user-attachments/assets/219dba0d-1cee-45e9-bcc5-e2995a209295" />
 
->>>>>>> 6e71926a047611456a20f4160b6cc0275edf1aca
+<img width="222" height="268" alt="image" src="https://github.com/user-attachments/assets/219dba0d-1cee-45e9-bcc5-e2995a209295" />
 
 
 ## Estado del proyecto
@@ -30,22 +26,14 @@ El objetivo principal es proporcionar visibilidad completa de los dispositivos c
 ### Funcionalidades Pricipales
 ## El proyecto se divide en dos módulos clave dentro de la interfaz gráfica
 
-1. Módulo de Escaneo de Red (RedScanner)
-<<<<<<< HEAD
-![chau](image.png)
-
 2. Módulo de Análisis de Red (NetStat Viewer)
 Este módulo implementa una interfaz gráfica para las funciones clave de netstat obteniendo los datos directamente del sistema operativo
-![hola](image-1.png)
-=======
 <img width="616" height="190" alt="image" src="https://github.com/user-attachments/assets/62969125-590e-49ff-82b3-98a64b87c9f3" />
 
 
 2. Módulo de Análisis de Red (NetStat Viewer)
 Este módulo implementa una interfaz gráfica para las funciones clave de netstat obteniendo los datos directamente del sistema operativo
 <img width="625" height="306" alt="image" src="https://github.com/user-attachments/assets/fb6df03d-ffdc-4dba-9344-7f844696b012" />
-
->>>>>>> 6e71926a047611456a20f4160b6cc0275edf1aca
 
 ---
 
